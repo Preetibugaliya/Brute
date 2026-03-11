@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BruteShield — Brute Force Attack Detection</title>
+    <meta name="description"
+        content="Real-time brute force attack detection dashboard with AI-enhanced anomaly detection, live log streaming, and threat intelligence." />
+    <meta name="keywords" content="brute force detection, cybersecurity, intrusion detection, anomaly detection, IDS" />
+
+    <!-- Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet" />
+
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- Leaflet JS & CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Font Awesome icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
+
+    <link rel="stylesheet" href="style.css?v=5" />
+</head>
+
+<body>
+    <!-- ── Login Screen ──────────────────────────── -->
+    <div id="login-screen" class="login-screen">
+        <div class="login-bg-grid"></div>
+        <div class="login-card">
+            <div class="login-logo">
+                <div class="logo-shield">
+                    <i class="fas fa-shield-halved"></i>
+                </div>
+                <h1>BruteShield</h1>
+                <p>Brute Force Detection System</p>
+            </div>
+            <form id="login-form" class="login-form">
+                <div class="form-group">
+                    <label for="login-username"><i class="fas fa-user"></i> Username</label>
+                    <input type="text" id="login-username" placeholder="admin" value="admin" autocomplete="username" />
+                </div>
+                <div class="form-group">
+                    <label for="login-password"><i class="fas fa-lock"></i> Password</label>
+                    <input type="password" id="login-password" placeholder="admin123" value="admin123"
+                        autocomplete="current-password" />
+                </div>
+                <button type="submit" id="login-btn" class="btn-login">
+                    <span class="btn-text">Access Dashboard</span>
+                    <span class="btn-icon"><i class="fas fa-arrow-right"></i></span>
+                </button>
+                <p id="login-error" class="login-error"></p>
+            </form>
+            <div class="login-hint">
+                <i class="fas fa-info-circle"></i>
+                Default: <code>admin</code> / <code>admin123</code>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Main App ──────────────────────────────── -->
+    <div id="app" class="app hidden">
+
+        <!-- Sidebar -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-logo">
+                <div class="logo-icon"><i class="fas fa-shield-halved"></i></div>
+                <span class="logo-text">BruteShield</span>
+            </div>
+
+            <ul class="sidebar-nav">
+                <li><a href="#" class="nav-link active" data-section="dashboard" id="nav-dashboard">
+                        <i class="fas fa-chart-line"></i><span>Dashboard</span>
+                    </a></li>
+                <li><a href="#" class="nav-link" data-section="logs" id="nav-logs">
+                        <i class="fas fa-list-ul"></i><span>Live Logs</span>
+                        <span class="nav-badge" id="logs-badge">0</span>
+                    </a></li>
+                <li><a href="#" class="nav-link" data-section="alerts" id="nav-alerts">
+                        <i class="fas fa-bell"></i><span>Alerts</span>
+                        <span class="nav-badge danger" id="alerts-badge">0</span>
+                    </a></li>
+                <li><a href="#" class="nav-link" data-section="simulate" id="nav-simulate">
+                        <i class="fas fa-flask"></i><span>Simulate</span>
+                    </a></li>
+                <li><a href="#" class="nav-link" data-section="config" id="nav-config">
+                        <i class="fas fa-sliders"></i><span>Configuration</span>
+                    </a></li>
+            </ul>
+
+            <div class="sidebar-footer">
+                <div class="ws-status" id="ws-status">
+                    <span class="status-dot disconnected" id="ws-dot"></span>
+                    <span id="ws-label">Disconnected</span>
+                </div>
+                <button class="btn-logout" id="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i><span>Logout</span>
+                </button>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+
+            <!-- Top Bar -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="sidebar-toggle" id="sidebar-toggle">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <div id="page-title" class="page-title">Dashboard</div>
+                </div>
+                <div class="topbar-right">
+                    <div class="sound-toggle">
+                        <label class="toggle-label" for="sound-toggle-cb">
+                            <i class="fas fa-volume-high"></i>
+                            <input type="checkbox" id="sound-toggle-cb" checked />
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="topbar-time" id="topbar-time"></div>
+                    <div class="admin-badge">
+                        <i class="fas fa-user-shield"></i>
+                        <span id="admin-name">admin</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- ── SECTION: Dashboard ─────────────────── -->
+            <section id="section-dashboard" class="content-section active">
+
+                <!-- Metric Cards -->
+                <div class="metric-cards">
+                    <div class="metric-card" id="card-total">
+                        <div class="metric-icon blue"><i class="fas fa-server"></i></div>
+                        <div class="metric-body">
+                            <div class="metric-value" id="m-total">0</div>
+                            <div class="metric-label">Total Requests</div>
+                            <div class="metric-trend">
+                                <span class="trend-up"><i class="fas fa-arrow-up"></i></span>
+                                <span id="m-total-rate">—</span>
+                            </div>
+                        </div>
+                        <div class="metric-glow blue"></div>
+                    </div>
+                    <div class="metric-card" id="card-failed">
+                        <div class="metric-icon orange"><i class="fas fa-times-circle"></i></div>
+                        <div class="metric-body">
+                            <div class="metric-value" id="m-failed">0</div>
+                            <div class="metric-label">Failed Logins</div>
+                            <div class="metric-trend">
+                                <span id="m-success-rate">—</span> success rate
+                            </div>
+                        </div>
+                        <div class="metric-glow orange"></div>
+                    </div>
+                    <div class="metric-card" id="card-attacks">
+                        <div class="metric-icon red"><i class="fas fa-skull-crossbones"></i></div>
+                        <div class="metric-body">
+                            <div class="metric-value" id="m-attacks">0</div>
+                            <div class="metric-label">Active Attacks</div>
+                            <div class="metric-trend pulse-label" id="m-attack-label">Monitoring...</div>
+                        </div>
+                        <div class="metric-glow red"></div>
+                    </div>
+                    <div class="metric-card" id="card-blocked">
+                        <div class="metric-icon purple"><i class="fas fa-ban"></i></div>
+                        <div class="metric-body">
+                            <div class="metric-value" id="m-blocked">0</div>
+                            <div class="metric-label">Blocked IPs</div>
+                            <div class="metric-trend">Firewall rules active</div>
+                        </div>
+                        <div class="metric-glow purple"></div>
+                    </div>
+                </div>
+
+                <!-- Live Threat Map -->
+                <div class="panel mb-24">
+                    <div class="panel-header">
+                        <h3><i class="fas fa-globe-americas"></i> Live Threat Map</h3>
+                        <span class="chart-badge live">LIVE TRACKING</span>
+                    </div>
+                    <div id="threat-map" class="threat-map"></div>
+                </div>
+
+                <!-- Charts Row 1 -->
+                <div class="charts-row">
+                    <div class="chart-card wide">
+                        <div class="chart-header">
+                            <h3><i class="fas fa-chart-line"></i> Failed Attempts Over Time</h3>
+                            <span class="chart-badge live">LIVE</span>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="timelineChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3><i class="fas fa-chart-pie"></i> Risk Distribution</h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="riskChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Row 2 -->
+                <div class="charts-row">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3><i class="fas fa-chart-bar"></i> Top Attacking IPs</h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="topIpsChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card wide">
+                        <div class="chart-header">
+                            <h3><i class="fas fa-fire"></i> Risk Score Heatmap</h3>
+                        </div>
+                        <div id="heatmap-container" class="heatmap-container">
+                            <!-- Heatmap generated by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Alerts Panel -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3><i class="fas fa-triangle-exclamation"></i> Recent Alerts</h3>
+                        <button class="btn-sm" onclick="UI.switchSection('alerts')">View All</button>
+                    </div>
+                    <div id="dashboard-alerts" class="alert-list">
+                        <div class="empty-state"><i class="fas fa-check-circle"></i> No alerts yet</div>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- ── SECTION: Live Logs ─────────────────── -->
+            <section id="section-logs" class="content-section">
+                <div class="logs-toolbar">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="log-search" placeholder="Search IP, username..." />
+                    </div>
+                    <div class="filter-group">
+                        <select id="filter-risk" class="filter-select">
+                            <option value="">All Risk Levels</option>
+                            <option value="high risk attack">High Risk Attack</option>
+                            <option value="suspicious">Suspicious</option>
+                            <option value="normal activity">Normal Activity</option>
+                        </select>
+                        <select id="filter-attack" class="filter-select">
+                            <option value="">All Attack Types</option>
+                            <option value="brute force">Brute Force</option>
+                            <option value="distributed brute force">Distributed BF</option>
+                            <option value="credential stuffing">Credential Stuffing</option>
+                            <option value="normal">Normal</option>
+                        </select>
+                    </div>
+                    <div class="toolbar-actions">
+                        <button class="btn-action" id="btn-export" onclick="exportCSV()">
+                            <i class="fas fa-download"></i> Export CSV
+                        </button>
+                        <button class="btn-action danger" onclick="clearLogs()">
+                            <i class="fas fa-trash"></i> Clear Logs
+                        </button>
+                        <button class="btn-action" id="btn-pause-logs" onclick="toggleLogPause()">
+                            <i class="fas fa-pause" id="pause-icon"></i> <span id="pause-label">Pause</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="log-table-wrapper">
+                    <table class="log-table" id="log-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>IP Address</th>
+                                <th>Username</th>
+                                <th>Country</th>
+                                <th>Status</th>
+                                <th>Fails</th>
+                                <th>Risk Score</th>
+                                <th>Classification</th>
+                                <th>Attack Type</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="log-tbody">
+                            <tr>
+                                <td colspan="10" class="empty-state">
+                                    <i class="fas fa-satellite-dish"></i> Waiting for login events...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="log-footer">
+                    <span id="log-count">0 records</span>
+                    <button class="btn-sm" onclick="loadMoreLogs()">Load More</button>
+                </div>
+            </section>
+
+            <!-- ── SECTION: Alerts ───────────────────── -->
+            <section id="section-alerts" class="content-section">
+                <div class="alerts-header">
+                    <h2><i class="fas fa-bell"></i> Security Alerts</h2>
+                    <button class="btn-action" onclick="clearAlerts()">
+                        <i class="fas fa-trash"></i> Clear Alerts
+                    </button>
+                </div>
+                <div id="alerts-container" class="alerts-full-list">
+                    <div class="empty-state"><i class="fas fa-shield-check"></i> No alerts yet. System is monitoring...
+                    </div>
+                </div>
+            </section>
+
+            <!-- ── SECTION: Simulate ─────────────────── -->
+            <section id="section-simulate" class="content-section">
+                <div class="simulate-header">
+                    <h2><i class="fas fa-flask"></i> Attack Simulator</h2>
+                    <p>Generate synthetic attack traffic to test detection capabilities.</p>
+                </div>
+
+                <div class="simulate-grid">
+                    <div class="sim-card" id="sim-brute">
+                        <div class="sim-icon"><i class="fas fa-hammer"></i></div>
+                        <h3>Brute Force Attack</h3>
+                        <p>Single IP repeatedly fails login for one user account. Most common attack vector.</p>
+                        <div class="sim-details">
+                            <span><i class="fas fa-network-wired"></i> 1 IP</span>
+                            <span><i class="fas fa-user"></i> 1 User</span>
+                            <span><i class="fas fa-bolt"></i> High frequency</span>
+                        </div>
+                        <button class="btn-simulate" onclick="simulate('brute_force')">
+                            <i class="fas fa-play"></i> Launch Attack
+                        </button>
+                    </div>
+
+                    <div class="sim-card" id="sim-distributed">
+                        <div class="sim-icon orange"><i class="fas fa-network-wired"></i></div>
+                        <h3>Distributed Brute Force</h3>
+                        <p>Multiple IPs coordinate to attack the same user account, evading per-IP limits.</p>
+                        <div class="sim-details">
+                            <span><i class="fas fa-network-wired"></i> Multi-IP</span>
+                            <span><i class="fas fa-user"></i> 1 User</span>
+                            <span><i class="fas fa-globe"></i> Botnet-style</span>
+                        </div>
+                        <button class="btn-simulate orange" onclick="simulate('distributed')">
+                            <i class="fas fa-play"></i> Launch Attack
+                        </button>
+                    </div>
+
+                    <div class="sim-card" id="sim-stuffing">
+                        <div class="sim-icon purple"><i class="fas fa-database"></i></div>
+                        <h3>Credential Stuffing</h3>
+                        <p>Leaked credential list: one IP tries many username/password combos.</p>
+                        <div class="sim-details">
+                            <span><i class="fas fa-network-wired"></i> 1 IP</span>
+                            <span><i class="fas fa-users"></i> Many users</span>
+                            <span><i class="fas fa-list"></i> Leaked DB</span>
+                        </div>
+                        <button class="btn-simulate purple" onclick="simulate('stuffing')">
+                            <i class="fas fa-play"></i> Launch Attack
+                        </button>
+                    </div>
+
+                    <div class="sim-card" id="sim-mixed">
+                        <div class="sim-icon green"><i class="fas fa-bolt"></i></div>
+                        <h3>Full Mixed Scenario</h3>
+                        <p>Combination of all attack types — best for comprehensive dashboard testing.</p>
+                        <div class="sim-details">
+                            <span><i class="fas fa-network-wired"></i> Multi-IP</span>
+                            <span><i class="fas fa-users"></i> Multi-user</span>
+                            <span><i class="fas fa-random"></i> All types</span>
+                        </div>
+                        <button class="btn-simulate green" onclick="simulate('mixed')">
+                            <i class="fas fa-play"></i> Launch Attack
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Manual Login Attempt -->
+                <div class="panel mt-20">
+                    <div class="panel-header">
+                        <h3><i class="fas fa-keyboard"></i> Manual Login Attempt</h3>
+                    </div>
+                    <div class="manual-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>IP Address</label>
+                                <input type="text" id="m-ip" placeholder="192.168.1.100" value="10.0.0.15" />
+                            </div>
+                            <div class="form-group">
+                                <label>Username</label>
+                                <input type="text" id="m-username" placeholder="admin" value="admin" />
+                            </div>
+                            <div class="form-group">
+                                <label>Country</label>
+                                <input type="text" id="m-country" placeholder="Russia" value="Russia" />
+                            </div>
+                            <div class="form-group">
+                                <label>Status</label>
+                                <select id="m-success">
+                                    <option value="false">Failed</option>
+                                    <option value="true">Success</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button class="btn-simulate green" onclick="submitManual()">
+                            <i class="fas fa-paper-plane"></i> Submit Attempt
+                        </button>
+                        <div id="manual-result" class="manual-result"></div>
+                    </div>
+                </div>
+
+                <!-- Simulation Result -->
+                <div id="sim-result" class="sim-result hidden"></div>
+            </section>
+
+            <!-- ── SECTION: Configuration ────────────── -->
+            <section id="section-config" class="content-section">
+                <div class="config-header">
+                    <h2><i class="fas fa-sliders"></i> Detection Configuration</h2>
+                    <p>Tune the detection thresholds to match your security posture.</p>
+                </div>
+
+                <div class="config-grid">
+                    <div class="config-card">
+                        <div class="config-icon"><i class="fas fa-xmark"></i></div>
+                        <h4>Failure Threshold</h4>
+                        <p>Max failed attempts before flagging as suspicious.</p>
+                        <div class="config-input-wrap">
+                            <input type="range" id="cfg-fail" min="2" max="20" value="5"
+                                oninput="updateSlider('cfg-fail', 'cfg-fail-val')" />
+                            <span class="slider-val" id="cfg-fail-val">5</span>
+                        </div>
+                    </div>
+                    <div class="config-card">
+                        <div class="config-icon orange"><i class="fas fa-clock"></i></div>
+                        <h4>Time Window</h4>
+                        <p>Sliding window in seconds for counting attempts.</p>
+                        <div class="config-input-wrap">
+                            <input type="range" id="cfg-window" min="30" max="600" step="30" value="120"
+                                oninput="updateSlider('cfg-window', 'cfg-window-val')" />
+                            <span class="slider-val" id="cfg-window-val">120s</span>
+                        </div>
+                    </div>
+                    <div class="config-card">
+                        <div class="config-icon purple"><i class="fas fa-network-wired"></i></div>
+                        <h4>Distributed Threshold</h4>
+                        <p>Minimum IPs attacking same user to flag as distributed.</p>
+                        <div class="config-input-wrap">
+                            <input type="range" id="cfg-dist" min="2" max="10" value="3"
+                                oninput="updateSlider('cfg-dist', 'cfg-dist-val')" />
+                            <span class="slider-val" id="cfg-dist-val">3</span>
+                        </div>
+                    </div>
+                    <div class="config-card">
+                        <div class="config-icon red"><i class="fas fa-database"></i></div>
+                        <h4>Stuffing Threshold</h4>
+                        <p>Unique usernames per IP to classify as credential stuffing.</p>
+                        <div class="config-input-wrap">
+                            <input type="range" id="cfg-stuff" min="5" max="50" step="5" value="10"
+                                oninput="updateSlider('cfg-stuff', 'cfg-stuff-val')" />
+                            <span class="slider-val" id="cfg-stuff-val">10</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="config-actions">
+                    <button class="btn-simulate green" onclick="saveConfig()">
+                        <i class="fas fa-save"></i> Save Configuration
+                    </button>
+                    <div id="config-msg" class="config-msg"></div>
+                </div>
+
+                <!-- Blocked IPs Panel -->
+                <div class="panel mt-20">
+                    <div class="panel-header">
+                        <h3><i class="fas fa-ban"></i> Blocked IPs</h3>
+                        <div class="panel-actions">
+                            <input type="text" id="block-ip-input" placeholder="Enter IP to block"
+                                class="inline-input" />
+                            <button class="btn-sm danger" onclick="blockIpManual()">Block IP</button>
+                        </div>
+                    </div>
+                    <div id="blocked-ips-list" class="blocked-list">
+                        <div class="empty-state"><i class="fas fa-check-shield"></i> No blocked IPs</div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- ── Investigation Side Panel ─────────────────── -->
+    <div id="investigation-overlay" class="investigation-overlay hidden" onclick="closeInvestigation()"></div>
+    <div id="investigation-panel" class="investigation-panel">
+        <div class="investigation-header">
+            <h3><i class="fas fa-search"></i> Entity Investigation</h3>
+            <button class="btn-icon" onclick="closeInvestigation()"><i class="fas fa-xmark"></i></button>
+        </div>
+        <div class="investigation-content" id="investigation-content">
+            <!-- Dynamic Content -->
+        </div>
+    </div>
+
+    <!-- ── Alert Toast ──────────────────────────── -->
+    <div id="alert-toast" class="alert-toast hidden">
+        <div class="toast-icon"><i class="fas fa-triangle-exclamation"></i></div>
+        <div class="toast-content">
+            <div class="toast-title" id="toast-title">Security Alert</div>
+            <div class="toast-msg" id="toast-msg"></div>
+        </div>
+        <button class="toast-close" onclick="closeToast()"><i class="fas fa-xmark"></i></button>
+    </div>
+
+    <script src="app.js?v=5"></script>
+</body>
+
+</html>
